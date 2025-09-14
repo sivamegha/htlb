@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Professional Photo Collage Maker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.2.4/fabric.min.js"></script>
+<style>
+  body {
+    margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    display: flex; height: 100vh; overflow: hidden;
+  }
+  #canvas-container {
+    flex: 1;
+    background: #fff;
+    display: flex; justify-content: center; align-items: center;
+    border-right: 1px solid #ccc;
+    position: relative;
+  }
+  canvas {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  }
+  #sidebar {
+    width: 320px;
+    background: #fff;
+    padding: 20px;
+    overflow-y: auto;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+  }
+  h2 {
+    margin-top: 0;
+    font-weight: 700;
+    color: #333;
+  }
+  label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: 600;
+    color: #555;
+  }
+  input[type="file"] {
+    width: 100%;
+  }
+  button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    background: #007bff;
+    border: none;
+    color: white;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  .frame-btn {
+    margin: 5px 5px 15px 0;
+    padding: 8px 12px;
+    border: 2px solid #007bff;
+    background: white;
+    color: #007bff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .frame-btn:hover {
+    background: #007bff;
+    color: white;
+  }
+  .slider {
+    width: 100%;
+  }
+  #text-controls {
+    margin-top: 20px;
+    border-top: 1px solid #ddd;
+    padding-top: 15px;
+  }
+  input[type="text"], select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container">
+  <canvas id="canvas" width="900" height="600"></canvas>
+</div>
+
+<div id="sidebar">
+  <h2>Upload Photos</h2>
+  <input type="file" id="upload" multiple accept="image/*" />
+  <button id="add-photo-btn">Add Selected Photos</button>
+
+  <h2>Frames</h2>
+  <div>
+    <button class="frame-btn" data-frame="circle">Pearl Circle</button>
+    <button class="frame-btn" data-frame="square">Pearl Square</button>
+    <button class="frame-btn" data-frame="heart">Pearl Heart</button>
+    <button class="frame-btn" data-frame="diamond">Pearl Diamond</button>
+  </div>
+
+  <h2>Photo Editing</h2>
+  <label for="brightness">Brightness</label>
+  <input type="range" id="brightness" min="-1" max="1" step="0.01" value="0" class="slider" disabled />
+
+  <label for="contrast">Contrast</label>
+  <input type="range" id="contrast" min="-1" max="1" step="0.01" value="0" class="slider" disabled />
+
+  <label for="saturation">Saturation</label>
+  <input type="range" id="saturation" min="-1" max="1" step="0.01" value="0" class="slider" disabled />
+
+  <label for="grayscale">Grayscale</label>
+  <input type="range" id="grayscale" min="0" max="1" step="0.01" value="0" class="slider" disabled />
+
+  <label for="blur">Blur</label>
+  <input type="range" id="blur" min="0" max="1" step="0.01" value="0" class="slider" disabled />
+
+  <h2>Text Overlay</h2>
+  <label for="text-input">Text</label>
+  <input type="text" id="text-input" placeholder="Enter text" disabled />
+
+  <label for="font-family">Font</label>
+  <select id="font-family" disabled>
+    <option value="Arial">Arial</option>
+    <option value="Georgia">Georgia</option>
+    <option value="Comic Sans MS">Comic Sans MS</option>
+    <option value="Courier New">Courier New</option>
+    <option value="Times New Roman">Times New Roman</option>
+  </select>
+
+  <label for="font-size">Font Size</label>
+  <input type="number" id="font-size" min="10" max="100" value="30" disabled />
+
+  <label for="font-color">Font Color</label>
+  <input type="color" id="font-color" value="#000000" disabled />
+
+  <button id="add-text-btn" disabled>Add Text</button>
+
+  <h2>Actions</h2>
+  <button id="bring-forward-btn" disabled>Bring Forward</button>
+  <button id="send-backward-btn" disabled>Send Backward</button>
+  <button id="delete-btn" disabled>Delete Selected</button>
+  <button id="export-btn">Export as PNG</button>
+</div>
+
+<script>
+  const canvas = new fabric.Canvas('canvas', {
+    backgroundColor: '#fff',
+    preserveObjectStacking: true,
+  });
+
+  // Disable selection on background
+  canvas.selection = false;
+
+  // Store uploaded images before adding to canvas
+  let uploadedImages = [];
+
+  // Add photo button
+  document.getElementById('add-photo-btn').onclick = () => {
+    uploadedImages.forEach(img => {
+      addImageToCanvas(img);
+    });
+    uploadedImages = [];
+    document.getElementById('upload').value = '';
+  };
+
+  // Handle file upload
+  document.getElementById('upload').addEventListener('change', (e) => {
+    uploadedImages = [];
+    const files = e.target.files;
+    for (let file of files) {
+      const reader = new FileReader();
+      reader.onload = (f) => {
+        uploadedImages.push(f.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Add image to canvas with default size and position
+  function addImageToCanvas(url) {
+    fabric.Image.fromURL(url, (img) => {
+      img.set({
+        left: 100 + Math.random() * 400,
+        top: 100 + Math.random() * 300,
+        scaleX: 0.5,
+        scaleY: 0.5,
+        cornerStyle: 'circle',
+        borderColor: '#007bff',
+        cornerColor: '#007bff',
+        transparentCorners: false,
+        lockUniScaling: true,
+      });
+      img.filters = [];
+      canvas.add(img);
+      canvas.setActiveObject(img);
+      updateControls();
+    }, { crossOrigin: 'anonymous' });
+  }
+
+  // Frame shapes as clipPaths
+  const frameShapes = {
+    circle: new fabric.Circle({ radius: 75, originX: 'center', originY: 'center' }),
+    square: new fabric.Rect({ width: 150, height: 150, originX: 'center', originY: 'center', rx: 15, ry: 15 }),
+    heart: new fabric.Path('M 0 0 C 0 -30 30 -30 30 0 C 30 30 0 50 0 70 C 0 50 -30 30 -30 0 C -30 -30 0 -30 0 0 Z', {
+      originX: 'center', originY: 'center', scaleX: 2, scaleY: 2
+    }),
+    diamond: new fabric.Polygon([
+      { x: 0, y: -75 },
+      { x: 75, y: 0 },
+      { x: 0, y: 75 },
+      { x: -75, y: 0 }
+    ], { originX: 'center', originY: 'center' }),
+  };
+
+  // Add frame button handlers
+  document.querySelectorAll('.frame-btn').forEach(btn => {
+    btn.onclick = () => {
+      const shapeName = btn.getAttribute('data-frame');
+      addFrame(shapeName);
+    };
+  });
+
+  // Add frame function
+  function addFrame(shapeName) {
+    const shape = frameShapes[shapeName].clone();
+    shape.set({
+      left: 450,
+      top: 300,
+      fill: 'rgba(255, 255, 255, 0.3)',
+      stroke: '#f0e6f7',
+      strokeWidth: 8,
+      shadow: new fabric.Shadow({
+        color: 'rgba(255, 255, 255, 0.8)',
+        blur: 20,
+        offsetX: 0,
+        offsetY: 0,
+      }),
+      selectable: false,
+      evented: false,
+    });
+
+    // Create a group with a pearl-like border effect
+    const pearlBorder = new fabric.Circle({
+      radius: shape.width / 2 + 12,
+      fill: 'rgba(255, 255, 255, 0.9)',
+      stroke: '#e6e6fa',
+      strokeWidth: 6,
+      shadow: new fabric.Shadow({
+        color: 'rgba(255, 255, 255, 0.7)',
+        blur: 15,
+        offsetX: 0,
+        offsetY: 0,
+      }),
+      originX: 'center',
+      originY: 'center',
+      selectable: false,
+      evented: false,
+    });
+
+    const group = new fabric.Group([pearlBorder, shape], {
+      left: 450,
+      top: 300,
+      selectable: false,
+      evented: false,
+    });
+
+    canvas.add(group);
+    canvas.sendToBack(group);
+  }
+
+  // Selected object editing controls
+  const brightnessControl = document.getElementById('brightness');
+  const contrastControl = document.getElementById('contrast');
+  const saturationControl = document.getElementById('saturation');
+  const grayscaleControl = document.getElementById('grayscale');
+  const blurControl = document.getElementById('blur');
+
+  const textInput = document.getElementById('text-input');
+  const fontFamilySelect = document.getElementById('font-family');
+  const fontSizeInput = document.getElementById('font-size');
+  const fontColorInput = document.getElementById('font-color');
+  const addTextBtn = document.getElementById('add-text-btn');
+
+  const bringForwardBtn = document.getElementById('bring-forward-btn');
+  const sendBackwardBtn = document.getElementById('send-backward-btn');
+  const deleteBtn = document.getElementById('delete-btn');
+
+  // Enable or disable controls based on selection
+  function updateControls() {
+    const active = canvas.getActiveObject();
+    const isImage = active && active.type === 'image';
+    const isText = active && active.type === 'textbox';
+
+    brightnessControl.disabled = !isImage;
+    contrastControl.disabled = !isImage;
+    saturationControl.disabled = !isImage;
+    grayscaleControl.disabled = !isImage;
+    blurControl.disabled = !isImage;
+
+    textInput.disabled = false;
+    fontFamilySelect.disabled = false;
+    fontSizeInput.disabled = false;
+    fontColorInput.disabled = false;
+    addTextBtn.disabled = false;
+
+    bringForwardBtn.disabled = !active;
+    sendBackwardBtn.disabled = !active;
+    deleteBtn.disabled = !active;
+
+    if (isImage) {
+      // Load current filter values
+      const filters = active.filters || [];
+      brightnessControl.value = getFilterValue(filters, 'Brightness') || 0;
+      contrastControl.value = getFilterValue(filters, 'Contrast') || 0;
+      saturationControl.value = getFilterValue(filters, 'Saturation') || 0;
+      grayscaleControl.value = getFilterValue(filters, 'Grayscale') || 0;
+      blurControl.value = getFilterValue(filters, 'Blur') || 0;
+    } else {
+      brightnessControl.value = 0;
+      contrastControl.value = 0;
+      saturationControl.value = 0;
+      grayscaleControl.value = 0;
+      blurControl.value = 0;
+    }
+
+    if (isText) {
+      textInput.value = active.text;
+      fontFamilySelect.value = active.fontFamily;
+      fontSizeInput.value = active.fontSize;
+      fontColorInput.value = active.fill;
+    } else {
+      textInput.value = '';
+      fontFamilySelect.value = 'Arial';
+      fontSizeInput.value = 30;
+      fontColorInput.value = '#000000';
+    }
+  }
+
+  // Helper to get filter value by name
+  function getFilterValue(filters, name) {
+    for (let f of filters) {
+      if (f.type === name) {
+        if (name === 'Blur') return f.blur;
+        return f[name.toLowerCase()] || 0;
+      }
+    }
+    return 0;
+  }
+
+  // Apply filters on image
+  function applyFilters() {
+    const active = canvas.getActiveObject();
+    if (!active || active.type !== 'image') return;
+
+    const brightness = parseFloat(brightnessControl.value);
+    const contrast = parseFloat(contrastControl.value);
+    const saturation = parseFloat(saturationControl.value);
+    const grayscale = parseFloat(grayscaleControl.value);
+    const blur = parseFloat(blurControl.value);
+
+    const filters = [];
+
+    if (brightness !== 0) filters.push(new fabric.Image.filters.Brightness({ brightness }));
+    if (contrast !== 0) filters.push(new fabric.Image.filters.Contrast({ contrast }));
+    if (saturation !== 0) filters.push(new fabric.Image.filters.Saturation({ saturation }));
+    if (grayscale !== 0) filters.push(new fabric.Image.filters.Grayscale());
+    if (blur !== 0) filters.push(new fabric.Image.filters.Blur({ blur }));
+
+    active.filters = filters;
+    active.applyFilters();
+    canvas.requestRenderAll();
+  }
+
+  // Event listeners for sliders
+  brightnessControl.addEventListener('input', applyFilters);
+  contrastControl.addEventListener('input', applyFilters);
+  saturationControl.addEventListener('input', applyFilters);
+  grayscaleControl.addEventListener('input', applyFilters);
+  blurControl.addEventListener('input', applyFilters);
+
+  // Add text overlay
+  addTextBtn.onclick = () => {
+    const text = new fabric.Textbox(textInput.value, {
+      left: 450,
+      top: 300,
+      fontFamily: fontFamilySelect.value,
+      fontSize: parseInt(fontSizeInput.value),
+      fill: fontColorInput.value,
+      editable: true,
+      cursorColor: '#007bff',
+      cornerColor: '#007bff',
+      borderColor: '#007bff',
+      cornerStyle: 'circle',
+      transparentCorners: false,
+    });
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    updateControls();
+  };
+
+  // Update text properties on input change
+  textInput.addEventListener('input', () => {
+    const active = canvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.text = textInput.value;
+      canvas.requestRenderAll();
+    }
+  });
+  fontFamilySelect.addEventListener('change', () => {
+    const active = canvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.fontFamily = fontFamilySelect.value;
+      canvas.requestRenderAll();
+    }
+  });
+  fontSizeInput.addEventListener('input', () => {
+    const active = canvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.fontSize = parseInt(fontSizeInput.value);
+      canvas.requestRenderAll();
+    }
+  });
+  fontColorInput.addEventListener('input', () => {
+    const active = canvas.getActiveObject();
+    if (active && active.type === 'textbox') {
+      active.fill = fontColorInput.value;
+      canvas.requestRenderAll();
+    }
+  });
+
+  // Layer management
+  bringForwardBtn.onclick = () => {
+    const active = canvas.getActiveObject();
+    if (active) {
+      canvas.bringForward(active);
+      canvas.requestRenderAll();
+    }
+  };
+  sendBackwardBtn.onclick = () => {
+    const active = canvas.getActiveObject();
+    if (active) {
+      canvas.sendBackwards(active);
+      canvas.requestRenderAll();
+    }
+  };
+
+  // Delete selected object
+  deleteBtn.onclick = () => {
+    const active = canvas.getActiveObject();
+    if (active) {
+      canvas.remove(active);
+      updateControls();
+    }
+  };
+
+  // Export canvas as PNG
+  document.getElementById('export-btn').onclick = () => {
+    const dataURL = canvas.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier: 2,
+    });
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = 'photo-collage.png';
+    link.click();
+  };
+
+  // Update controls on selection change
+  canvas.on('selection:created', updateControls);
+  canvas.on('selection:

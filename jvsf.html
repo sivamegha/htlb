@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canva-like Image Editor with Page Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.5rem;
+            background: #e5e7eb;
+            border-bottom: 2px solid #d1d5db;
+        }
+        .page-toolbar {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .page-button {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: #374151;
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .page-button:hover {
+            background: #1f2937;
+        }
+        .canvas {
+            flex: 1;
+            position: relative;
+            background: white;
+            min-height: 500px;
+            border: 1px solid #d1d5db;
+            overflow: auto;
+            margin: 1rem;
+        }
+        .image-element {
+            position: absolute;
+            cursor: grab;
+            border: 2px solid transparent;
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+        .image-element:hover {
+            border-color: #3b82f6;
+        }
+        .image-element.selected {
+            border-color: #1d4ed8;
+        }
+        .image-element img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s ease;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #3b82f6;
+            border-radius: 50%;
+            border: 1px solid white;
+            cursor: pointer;
+        }
+        .resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+        .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+        .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+        .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+        .rotate-handle {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 15px;
+            height: 15px;
+            background: #f59e0b;
+            border-radius: 50%;
+            border: 1px solid white;
+            cursor: alias;
+        }
+        .pages-sidebar {
+            width: 200px;
+            background: #f9fafb;
+            border-right: 1px solid #d1d5db;
+            padding: 1rem;
+        }
+        .page-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        .page-item.active {
+            background: #dbeafe;
+        }
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="flex h-screen bg-gray-100">
+    <!-- Sidebar for pages -->
+    <div class="pages-sidebar">
+        <h3 class="font-bold mb-4">Pages</h3>
+        <div id="pages-list" class="space-y-2">
+            <div class="page-item active" data-page-id="1">
+                <span>Page 1</span>
+                <div class="flex gap-1">
+                    <button class="lock-btn" title="Lock/Unlock Page">🔒</button>
+                    <button class="duplicate-btn" title="Duplicate Page">📄</button>
+                    <button class="delete-btn" title="Delete Page">🗑️</button>
+                </div>
+            </div>
+        </div>
+        <button id="add-page" class="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded">Add Page</button>
+    </div>
+    
+    <!-- Main content -->
+    <div class="flex-1 flex flex-col">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <button id="upload-btn" class="bg-blue-600 text-white py-1 px-3 rounded">Upload Image</button>
+            <input type="file" id="file-input" accept="image/*" class="hidden">
+            <div class="page-toolbar">
+                <button id="lock-page-btn" class="page-button">
+                    <span>🔒</span>
+                    Lock Page (Info)
+                </button>
+                <button id="duplicate-page-btn" class="page-button">
+                    <span>📄</span>
+                    Duplicate Page
+                </button>
+                <button id="delete-page-btn" class="page-button">
+                    <span>🗑️</span>
+                    Delete Page
+                </button>
+            </div>
+        </div>
+        
+        <!-- Canvas -->
+        <div id="canvas" class="canvas">
+            <div class="upload-area" id="upload-area">
+                <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/e295fdc8-95d2-4d43-b894-78be6d67fce8.png" alt="Drop images here or click to upload - drag, resize, and rotate images like Canva" />
+                <p class="mt-2">Drop images here or use the upload button</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables
+        let selectedElement = null;
+        let isDragging = false;
+        let isResizing = false;
+        let isRotating = false;
+        let dragStart = { x: 0, y: 0 };
+        let initialPos = { x: 0, y: 0 };
+        let initialSize = { width: 0, height: 0 };
+        let initialRotation = 0;
+        let resizeHandle = null;
+        let pageId = 1;
+        let currentPage = pageId;
+        const pages = [{ id: 1, locked: false, images: [] }];
+        const canvas = document.getElementById('canvas');
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const pagesList = document.getElementById('pages-list');
+        const addPageBtn = document.getElementById('add-page');
+        const lockPageBtn = document.getElementById('lock-page-btn');
+        const duplicatePageBtn = document.getElementById('duplicate-page-btn');
+        const deletePageBtn = document.getElementById('delete-page-btn');
+
+        // Initialize
+        updateCanvas();
+
+        // Page management functions
+        function renderPages() {
+            pagesList.innerHTML = '';
+            pages.forEach(page => {
+                const pageItem = document.createElement('div');
+                pageItem.className = `page-item ${page.id === currentPage ? 'active' : ''}`;
+                pageItem.setAttribute('data-page-id', page.id);
+                pageItem.innerHTML = `
+                    <span>Page ${page.id}</span>
+                    <div class="flex gap-1">
+                        <button class="lock-btn" title="Lock/Unlock Page">${page.locked ? '🔒' : '🔓'}</button>
+                        <button class="duplicate-btn" title="Duplicate Page">📄</button>
+                        <button class="delete-btn" title="Delete Page">🗑️</button>
+                    </div>
+                `;
+                
+                pageItem.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('lock-btn') && 
+                        !e.target.classList.contains('duplicate-btn') && 
+                        !e.target.classList.contains('delete-btn')) {
+                        switchToPage(page.id);
+                    }
+                });
+                
+                pageItem.querySelector('.lock-btn').addEventListener('click', () => {
+                    page.locked = !page.locked;
+                    renderPages();
+                });
+                
+                pageItem.querySelector('.duplicate-btn').addEventListener('click', () => {
+                    const newPage = {
+                        id: ++pageId,
+                        locked: false,
+                        images: JSON.parse(JSON.stringify(page.images)) // Deep copy
+                    };
+                    pages.push(newPage);
+                    currentPage = newPage.id;
+                    renderPages();
+                    updateCanvas();
+                });
+                
+                pageItem.querySelector('.delete-btn').addEventListener('click', () => {
+                    if (pages.length > 1) {
+                        const index = pages.findIndex(p => p.id === page.id);
+                        pages.splice(index, 1);
+                        currentPage = pages.length > 0 ? pages[0].id : pageId;
+                        renderPages();
+                        updateCanvas();
+                    } else {
+                        alert('Cannot delete the last page.');
+                    }
+                });
+                
+                pagesList.appendChild(pageItem);
+            });
+        }
+
+        function switchToPage(id) {
+            currentPage = id;
+            const page = pages.find(p => p.id === id);
+            renderPages();
+            updateCanvas();
+        }
+
+        function updateCanvas() {
+            const page = pages.find(p => p.id === currentPage);
+            if (!page) return;
+            
+            const isLocked = page.locked;
+            
+            // Clear canvas
+            canvas.innerHTML = '';
+            
+            if (page.images.length === 0) {
+                canvas.appendChild(uploadArea);
+            } else {
+                canvas.innerHTML = '';
+                page.images.forEach((imgData, index) => {
+                    const imgDiv = document.createElement('div');
+                    imgDiv.className = 'image-element';
+                    imgDiv.style.left = imgData.left;
+                    imgDiv.style.top = imgData.top;
+                    imgDiv.style.width = imgData.width;
+                    imgDiv.style.height = imgData.height;
+                    imgDiv.style.transform = `rotate(${imgData.rotation}deg)`;
+                    imgDiv.setAttribute('data-index', index);
+                    
+                    const img = document.createElement('img');
+                    img.src = imgData.src;
+                    img.alt = `Image in page ${currentPage} - can be dragged, resized, and rotated`;
+                    
+                    imgDiv.appendChild(img);
+                    
+                    if (!isLocked) {
+                        // Add resize and rotate handles
+                        const handles = ['nw', 'ne', 'sw', 'se'];
+                        handles.forEach(handle => {
+                            const h = document.createElement('div');
+                            h.className = `resize-handle ${handle}`;
+                            imgDiv.appendChild(h);
+                        });
+                        
+                        const rotateHandle = document.createElement('div');
+                        rotateHandle.className = 'rotate-handle';
+                        imgDiv.appendChild(rotateHandle);
+                    }
+                    
+                    canvas.appendChild(imgDiv);
+                });
+            }
+        }
+
+        // Upload functionality
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        addImageToPage(evt.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+        
+        function addImageToPage(src) {
+            const page = pages.find(p => p.id === currentPage);
+            if (page.locked) return;
+            
+            const imgData = {
+                src: src,
+                left: '50px',
+                top: '50px',
+                width: '200px',
+                height: '150px',
+                rotation: 0
+            };
+            page.images.push(imgData);
+            
+            if (canvas.contains(uploadArea)) {
+                canvas.removeChild(uploadArea);
+            }
+            updateCanvas();
+        }
+
+        // Canvas interaction
+        canvas.addEventListener('mousedown', (e) => {
+            const page = pages.find(p => p.id === currentPage);
+            if (page.locked) return;
+            
+            const target = e.target;
+            const element = target.closest('.image-element');
+            
+            if (element) {
+                selectedElement = element;
+                
+                // Check if clicking on resize handle
+                if (target.classList.contains('resize-handle')) {
+                    isResizing = true;
+                    resizeHandle = target.classList.item(1); // nw, ne, etc.
+                    dragStart.x = e.clientX;
+                    dragStart.y = e.clientY;
+                    initialSize.width = parseFloat(element.style.width);
+                    initialSize.height = parseFloat(element.style.height);
+                    initialPos.x = parseFloat(element.style.left);
+                    initialPos.y = parseFloat(element.style.top);
+                } else if (target.classList.contains('rotate-handle')) {
+                    isRotating = true;
+                    const rect = element.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    initialRotation = parseFloat(element.style.transform.replace('rotate(', '').replace('deg)', '')) || 0;
+                    dragStart.x = e.clientX;
+                    dragStart.y = e.clientY;
+                    const initialAngle = Math.atan2(dragStart.y - centerY, dragStart.x - centerX) * 180 / Math.PI;
+                    element.setAttribute('data-initial-angle', initialAngle);
+                } else {
+                    // Dragging
+                    isDragging = true;
+                    dragStart.x = e.clientX;
+                    dragStart.y = e.clientY;
+                    initialPos.x = parseFloat(element.style.left);
+                    initialPos.y = parseFloat(element.style.top);
+                }
+                
+                // Add visual feedback
+                document.querySelectorAll('.image-element').forEach(el => el.classList.remove('selected'));
+                element.classList.add('selected');
+                
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            const page = pages.find(p => p.id === currentPage);
+            if (page.locked) return;
+            
+            if (selectedElement) {
+                if (isDragging) {
+                    const dx = e.clientX - dragStart.x;
+                    const dy = e.clientY - dragStart.y;
+                    selectedElement.style.left = (initialPos.x + dx) + 'px';
+                    selectedElement.style.top = (initialPos.y + dy) + 'px';
+                } else if (isResizing) {
+                    const dx = e.clientX - dragStart.x;
+                    const dy = e.clientY - dragStart.y;
+                    let newWidth = initialSize.width;
+                    let newHeight = initialSize.height;
+                    let newLeft = initialPos.x;
+                    let newTop = initialPos.y;
+                    
+                    if (resizeHandle === 'se') {
+                        newWidth = initialSize.width + dx;
+                        newHeight = initialSize.height + dy;
+                    } else if (resizeHandle === 'sw') {
+                        newLeft = initialPos.x + dx;
+                        newWidth = initialSize.width - dx;
+                        newHeight = initialSize.height + dy;
+                    } else if (resizeHandle === 'ne') {
+                        newTop = initialPos.y + dy;
+                        newWidth = initialSize.width + dx;
+                        newHeight = initialSize.height - dy;
+                    } else if (resizeHandle === 'nw') {
+                        newLeft = initialPos.x + dx;
+                        newTop = initialPos.y + dy;
+                        newWidth = initialSize.width - dx;
+                        newHeight = initialSize.height - dy;
+                    }
+                    
+                    if (newWidth > 50 && newHeight > 50) {
+                        selectedElement.style.width = newWidth + 'px';
+                        selectedElement.style.height = newHeight + 'px';
+                        selectedElement.style.left = newLeft + 'px';
+                        selectedElement.style.top = newTop + 'px';
+                    }
+                } else if (isRotating) {
+                    const rect = selectedElement.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const initialAngle = parseFloat(selectedElement.getAttribute('data-initial-angle'));
+                    const currentAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+                    const rotation = initialRotation + (currentAngle - initialAngle);
+                    selectedElement.style.transform = `rotate(${rotation}deg)`;
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (selectedElement) {
+                const page = pages.find(p => p.id === currentPage);
+                const index = parseInt(selectedElement.getAttribute('data-index'));
+                if (isDragging || isResizing || isRotating) {
+                    // Update stored data
+                    const imgData = page.images[index];
+                    imgData.left = selectedElement.style.left;
+                    imgData.top = selectedElement.style.top;
+                    imgData.width = selectedElement.style.width;
+                    imgData.height = selectedElement.style.height;
+                    const transform = selectedElement.style.transform;
+                    imgData.rotation = parseFloat(transform.replace('rotate(', '').replace('deg)', '')) || 0;
+                }
+            }
+            isDragging = false;
+            isResizing = false;
+            isRotating = false;
+            resizeHandle = null;
+            selectedElement = null;
+        });
+
+        // Add new page
+        addPageBtn.addEventListener('click', () => {
+            const newPage = {
+                id: ++pageId,
+                locked: false,
+                images: []
+            };
+            pages.push(newPage);
+            currentPage = newPage.id;
+            renderPages();
+            updateCanvas();
+        });
+
+        // Toolbar page buttons
+        lockPageBtn.addEventListener('click', () => {
+            const page = pages.find(p => p.id === currentPage);
+            page.locked = !page.locked;
+            renderPages();
+            alert(page.locked ? 'Page locked!' : 'Page unlocked!');
+        });
+
+        duplicatePageBtn.addEventListener('click', () => {
+            const page = pages.find(p => p.id === currentPage);
+            const newPage = {
+                id: ++pageId,
+                locked: false,
+                images: JSON.parse(JSON.stringify(page.images))
+            };
+            pages.push(newPage);
+            currentPage = newPage.id;
+            renderPages();
+            updateCanvas();
+        });
+
+        deletePageBtn.addEventListener('click', () => {
+            if (pages.length > 1) {
+                const index = pages.findIndex(p => p.id === currentPage);
+                pages.splice(index, 1);
+                currentPage = pages[0].id;
+                renderPages();
+                updateCanvas();
+            } else {
+                alert('Cannot delete the last page.');
+            }
+        });
+
+        // Drag and drop
+        canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const page = pages.find(p => p.id === currentPage);
+            if (page.locked) return;
+            
+            const files = e.dataTransfer.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        addImageToPage(evt.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+</content>
+</create_file>

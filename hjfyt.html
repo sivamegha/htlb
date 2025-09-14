@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Collage Maker - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .hero-bg {
+            background: linear-gradient(135deg, #ff9a8b 0%, #ffc3a0 100%);
+        }
+        .background-preview {
+            border: 4px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .design-element {
+            position: absolute;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <!-- Header -->
+    <header class="bg-white shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800">Pearl Collage Creator</h1>
+            <button id="edit-btn" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all transform hover:scale-105">
+                Start Editing
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-bg py-16">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold mb-6 text-white">
+                Design Your Pearl-Like Photo Collage
+            </h2>
+            <p class="text-xl mb-8 text-white max-w-2xl mx-auto">
+                Set a stunning background, add personalized designs, and bring your memories to life with our unique pearl-themed frames.
+            </p>
+        </div>
+    </section>
+
+    <!-- Background Setter -->
+    <section class="container mx-auto px-4 py-12">
+        <div class="bg-white rounded-lg shadow-xl p-8">
+            <h3 class="text-2xl font-semibold mb-6 text-gray-800">Step 1: Choose Your Background</h3>
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="flex-1">
+                    <label for="bg-upload" class="block text-gray-700 mb-2 font-medium">Upload Background Image</label>
+                    <input type="file" id="bg-upload" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex-1">
+                    <label for="bg-color-picker" class="block text-gray-700 mb-2 font-medium">Or Choose Background Color</label>
+                    <input type="color" id="bg-color-picker" value="#ffffff" class="w-full h-10 border border-gray-300 rounded-md">
+                </div>
+            </div>
+            <button id="set-bg-btn" class="mt-6 px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-colors">
+                Set Background
+            </button>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="mt-12">
+            <h3 class="text-2xl font-semibold mb-6 text-gray-800 text-center">Step 2: Add Your Design Elements</h3>
+            <div class="background-preview mx-auto" id="background-preview" style="width: 800px; height: 600px; background-color: #ffffff; display: flex; justify-content: center; align-items: center;">
+                <p class="text-gray-500 text-lg">Your design will appear here</p>
+                <!-- Design elements will be added here -->
+                <div id="design-layer"></div>
+            </div>
+        </div>
+
+        <!-- Add Design Elements -->
+        <div class="mt-8 bg-gray-100 rounded-lg p-6">
+            <h4 class="text-xl font-semibold mb-4">Add Design Elements</h4>
+            <div class="flex flex-wrap gap-4">
+                <button id="add-text-element" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
+                    Add Text
+                </button>
+                <button id="add-shape-rectangle" class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600">
+                    Add Rectangle
+                </button>
+                <button id="add-shape-circle" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
+                    Add Circle
+                </button>
+            </div>
+        </div>
+
+        <!-- Proceed to Edit -->
+        <div class="mt-12 text-center">
+            <p class="text-lg mb-4 text-gray-600">
+                Ready to fine-tune your collage? Click the "Start Editing" button above to access advanced tools!
+            </p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2023 Pearl Collage Creator. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Store design data globally
+        let backgroundImageData = null;
+        let backgroundColor = '#ffffff';
+        let designElements = [];
+
+        // Handle background upload
+        document.getElementById('bg-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    backgroundImageData = e.target.result;
+                    updatePreview();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle background color change
+        document.getElementById('bg-color-picker').addEventListener('input', (e) => {
+            backgroundColor = e.target.value;
+            backgroundImageData = null; // Reset image if color is chosen
+            updatePreview();
+        });
+
+        // Set background button
+        document.getElementById('set-bg-btn').addEventListener('click', () => {
+            updatePreview();
+        });
+
+        // Add text element
+        document.getElementById('add-text-element').addEventListener('click', () => {
+            const text = prompt('Enter text:');
+            if (text) {
+                addDesignElement('text', text, Math.random() * 300 + 50, Math.random() * 200 + 50);
+            }
+        });
+
+        // Add rectangle
+        document.getElementById('add-shape-rectangle').addEventListener('click', () => {
+            addDesignElement('rectangle', null, Math.random() * 300 + 50, Math.random() * 200 + 50);
+        });
+
+        // Add circle
+        document.getElementById('add-shape-circle').addEventListener('click', () => {
+            addDesignElement('circle', null, Math.random() * 300 + 50, Math.random() * 200 + 50);
+        });
+
+        // Function to add design element
+        function addDesignElement(type, content, x, y) {
+            const element = document.createElement('div');
+            element.classList.add('design-element');
+            element.style.left = `${x}px`;
+            element.style.top = `${y}px`;
+            element.style.width = '150px';
+            element.style.height = '50px';
+            element.style.zIndex = designElements.length + 1;
+
+            if (type === 'text') {
+                element.innerText = content;
+                element.style.fontSize = '20px';
+                element.style.fontWeight = 'bold';
+                element.style.color = 'blue';
+                element.style.background = 'transparent';
+            } else if (type === 'rectangle') {
+                element.style.background = 'red';
+                element.style.border = '2px solid black';
+            } else if (type === 'circle') {
+                element.style.background = 'green';
+                element.style.borderRadius = '50%';
+                element.style.border = '2px solid black';
+            }
+
+            element.addEventListener('dblclick', () => {
+                element.remove();
+                designElements = designElements.filter(e => e !== elementData);
+            });
+
+            // Make element draggable (simple implementation)
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+
+            element.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialX = parseInt(element.style.left);
+                initialY = parseInt(element.style.top);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    element.style.left = `${initialX + dx}px`;
+                    element.style.top = `${initialY + dy}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            const elementData = { type, content, x, y, element };
+            designElements.push(elementData);
+            document.getElementById('design-layer').appendChild(element);
+        }
+
+        // Update preview
+        function updatePreview() {
+            const preview = document.getElementById('background-preview');
+            if (backgroundImageData) {
+                preview.style.backgroundImage = `url(${backgroundImageData})`;
+                preview.style.backgroundSize = 'cover';
+                preview.style.backgroundColor = 'transparent';
+                preview.querySelector('p').style.display = 'none';
+            } else {
+                preview.style.backgroundImage = 'none';
+                preview.style.backgroundColor = backgroundColor;
+                preview.querySelector('p').style.display = 'block';
+            }
+        }
+
+        // Edit button - store data and go to editor
+        document.getElementById('edit-btn').addEventListener('click', () => {
+            const data = {
+                backgroundImage: backgroundImageData,
+                backgroundColor: backgroundColor,
+                designElements: designElements.map(e => ({ type: e.type, content: e.content, x: e.x, y: e.y }))
+            };
+            localStorage.setItem('collageData', JSON.stringify(data));
+            window.location.href = 'editor.html';
+        });
+    </script>
+</body>
+</html>
+</content>
+</create_file>
+
+<create_file>
+<path>editor.html</path>
+<content>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pearl Photo Collage Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #canvas-container {
+            flex: 1;
+            background: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid #ccc;
+            position: relative;
+        }
+        canvas {
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        #sidebar {
+            width: 320px;
+            background: #fff;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+        }
+        h2 {
+            margin-top: 0;
+            font-weight: 700;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin: 12px 0 6px;
+            font-weight: 600;
+            color: #555;
+        }
+        input[type="file"] {
+            width: 100%;
+        }
+        button {
+            margin-top: 15px;
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            border: none;
+            color: white;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .frame-btn {
+            margin: 5px 5px 15px 0;
+            padding: 8px 12px;
+            border: 2px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        .frame-btn:hover {
+            background: #007bff;
+            color: white;
+        }
+        .slider {
+            width: 100%;
+        }
+        #text-controls {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas" width="900" height="600"></canvas>
+    </div>
+
+    <div id="sidebar">
+        <h2>Upload Photos</h2>
+        <input type="file" id="upload" multiple accept="image/*" />
+        <button id="add-photo-btn">Add Selected Photos</button>
+
+        <h2>Frames</h2>
+        <div>
+            <button class="frame-btn" data-frame="circle">Pearl Circle</button>
+            <button class="frame-btn" data-frame="square">Pearl Square</button>
+            <button class="frame-btn" data-frame="heart">Pearl Heart</button>
+            <button class="frame-btn" data-frame="diamond">Pearl Diamond</button>
+        </div>
+
+        <h2>Photo Editing</h2>
+        <label for="brightness">Brightness</label>
+        <input type="range" id="brightness" min="-1" max="1" step="0.01" value="0" class="slider disabled" />
+
+        <label for="contrast">Contrast</label>
+        <input type="range" id="contrast" min="-1" max="1" step="0.01" value="0" class="slider disabled" />
+
+        <label for="saturation">Saturation</label>
+        <input type="range" id="saturation" min="-1" max="1" step="0.01" value="0" class="slider disabled" />
+
+        <label for="grayscale">Grayscale</label>
+        <input type="range" id="grayscale" min="0" max="1" step="0.01" value="0" class="slider disabled" />
+
+        <label for="blur">Blur</label>
+        <input type="range" id="blur" min="0" max="1" step="0.01" value="0" class="slider disabled" />
+
+        <div id="text-controls">
+            <h2>Text Overlay</h2>
+            <label for="text-input">Text</label>
+            <input type="text" id="text-input" placeholder="Enter text" disabled />
+
+            <label for="font-family">Font</label>
+            <select id="font-family" disabled>
+                <option value="Arial">Arial</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Comic Sans MS">Comic Sans MS</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Times New Roman">Times New Roman</option>
+            </select>
+
+            <label for="font-size">Font Size</label>
+            <input type="number" id="font-size" min="10" max="100" value="30" disabled />
+
+            <label for="font-color">Font Color</label>
+            <input type="color" id="font-color" value="#000000" disabled />
+
+            <button id="add-text-btn" disabled>Add Text</button>
+        </div>
+
+        <h2>Layer Management</h2>
+        <button id="bring-forward-btn" disabled>Bring Forward</button>
+        <button id="send-backward-btn" disabled>Send Backward</button>
+        <button id="delete-btn" disabled>Delete Selected</button>
+
+        <h2>Actions</h2>
+        <button id="download-btn">Download Collage</button>
+        <button id="back-btn" style="background: #6c757d;">Back to Home</button>
+    </div>
+
+    <script>
+        const canvas = new fabric.Canvas('canvas', {
+            backgroundColor: '#fff',
+            preserveObjectStacking: true,
+        });
+
+        // Disable selection on background
+        canvas.selection = false;
+
+        // Load data from home
+        const collageData = JSON.parse(localStorage.getItem('collageData') || '{}');
+
+        if (collageData.backgroundImage) {
+            fabric.Image.fromURL(collageData.backgroundImage, (img) => {
+                img.set({
+                    originX: 'center',
+                    originY: 'center',
+                    left: 450,
+                    top: 300,
+                    scaleX: canvas.width / img.width,
+                    scaleY: canvas.height / img.height,
+                    selectable: false,
+                    evented: false,
+                });
+                canvas.add(img);
+                canvas.sendToBack(img);
+            });
+        } else {
+            canvas.backgroundColor = collageData.backgroundColor || '#ffffff';
+        }
+
+        // Add design elements
+        collageData.designElements?.forEach((element) => {
+            if (element.type === 'text') {
+                const text = new fabric.Text(element.content, {
+                    left: element.x + 400,
+                    top: element.y + 200,
+                    fontSize: 20,
+                    fill: 'blue',
+                    selectable: true,
+                });
+                canvas.add(text);
+            } else if (element.type === 'rectangle') {
+                const rect = new fabric.Rect({
+                    left: element.x + 400,
+                    top: element.y + 200,
+                    width: 150,
+                    height: 50,
+                    fill: 'red',
+                    stroke: 'black',
+                    strokeWidth: 2,
+                    selectable: true,
+                });
+                canvas.add(rect);
+            } else if (element.type === 'circle') {
+                const circle = new fabric.Circle({
+                    left: element.x + 400,
+                    top: element.y + 200,
+                    radius: 25,
+                    fill: 'green',
+                    stroke: 'black',
+                    strokeWidth: 2,
+                    selectable: true,
+                });
+                canvas.add(circle);
+            }
+        });
+
+        // Store uploaded images
+        let uploadedImages = [];
+
+        // Add photo button
+        document.getElementById('add-photo-btn').addEventListener('click', () => {
+            uploadedImages.forEach(img => {
+                addImageToCanvas(img);
+            });
+            uploadedImages = [];
+            document.getElementById('upload').value = '';
+        });
+
+        // Handle file upload
+        document.getElementById('upload').addEventListener('change', (e) => {
+            const files = e.target.files;
+            uploadedImages = [];
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = (f) => {
+                    uploadedImages.push(f.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Add image to canvas
+        function addImageToCanvas(url) {
+            fabric.Image.fromURL(url, (img) => {
+                img.set({
+                    left: 100 + Math.random() * 400,
+                    top: 100 + Math.random() * 300,
+                    scaleX: 0.5,
+                    scaleY: 0.5,
+                    cornerStyle: 'circle',
+                    borderColor: '#007bff',
+                    cornerColor: '#007bff',
+                    transparentCorners: false,
+                    lockUniScaling: true,
+                });
+                img.filters = [];
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                updateControls();
+            }, { crossOrigin: 'anonymous' });
+        }
+
+        // Frame shapes
+        const frameShapes = {
+            circle: new fabric.Circle({ radius: 75, originX: 'center', originY: 'center' }),
+            square: new fabric.Rect({ width: 150, height: 150, originX: 'center', originY: 'center', rx: 15, ry: 15 }),
+            heart: new fabric.Path('M 0 0 C 0 -30 30 -30 30 0 C 30 30 0 50 0 70 C 0 50 -30 30 -30 0 C -30 -30 0 -30 0 0 Z', {
+                originX: 'center', originY: 'center', scaleX: 2, scaleY: 2
+            }),
+            diamond: new fabric.Polygon([
+                { x: 0, y: -75 },
+                { x: 75, y: 0 },
+                { x: 0, y: 75 },
+                { x: -75, y: 0 }
+            ], { originX: 'center', originY: 'center' }),
+        };
+
+        // Add frame
+        document.querySelectorAll('.frame-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const shapeName = btn.getAttribute('data-frame');
+                addFrame(shapeName);
+            });
+        });
+
+        function addFrame(shapeName) {
+            const shape = frameShapes[shapeName].clone();
+            shape.set({
+                left: 450,
+                top: 300,
+                fill: 'rgba(255, 255, 255, 0.3)',
+                stroke: '#f0e6f7',
+                strokeWidth: 8,
+                shadow: new fabric.Shadow({
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    blur: 20,
+                    offsetX: 0,
+                    offsetY: 0,
+                }),
+                selectable: false,
+                evented: false,
+            });
+
+            const pearlBorder = new fabric.Circle({
+                radius: shape.width / 2 + 12,
+                fill: 'rgba(255, 255, 255, 0.9)',
+                stroke: '#e6e6fa',
+                strokeWidth: 6,
+                shadow: new fabric.Shadow({
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    blur: 15,
+                    offsetX: 0,
+                    offsetY: 0,
+                }),
+                originX: 'center',
+                originY: 'center',
+                selectable: false,
+                evented: false,
+            });
+
+            const group = new fabric.Group([pearlBorder, shape], {
+                left: 450,
+                top: 300,
+                selectable: false,
+                evented: false,
+            });
+
+            canvas.add(group);
+            canvas.sendToBack(group);
+        }
+
+        // Editing controls
+        const brightnessControl = document.getElementById('brightness');
+        const contrastControl = document.getElementById('contrast');
+        const saturationControl = document.getElementById('saturation');
+        const grayscaleControl = document.getElementById('grayscale');
+        const blurControl = document.getElementById('blur');
+
+        const textInput = document.getElementById('text-input');
+        const fontFamilySelect = document.getElementById('font-family');
+        const fontSizeInput = document.getElementById('font-size');
+        const fontColorInput = document.getElementById('font-color');
+        const addTextBtn = document.getElementById('add-text-btn');
+
+        const bringForwardBtn = document.getElementById('bring-forward-btn');
+        const sendBackwardBtn = document.getElementById('send-backward-btn');
+        const deleteBtn = document.getElementById('delete-btn');
+
+        // Update controls
+        function updateControls() {
+            const active = canvas.getActiveObject();
+            const isImage = active && active.type === 'image';
+            const isText = active && active.type === 'textbox';
+
+            brightnessControl.classList.toggle('disabled', !isImage);
+            contrastControl.classList.toggle('disabled', !isImage);
+            saturationControl.classList.toggle('disabled', !isImage);
+            grayscaleControl.classList.toggle('disabled', !isImage);
+            blurControl.classList.toggle('disabled', !isImage);
+
+            textInput.disabled = false;
+            fontFamilySelect.disabled = false;
+            fontSizeInput.disabled = false;
+            fontColorInput.disabled = false;
+            addTextBtn.disabled = false;
+
+            bringForwardBtn.disabled = !active;
+            sendBackwardBtn.disabled = !active;
+            deleteBtn.disabled = !active;
+
+            if (isImage) {
+                const filters = active.filters || [];
+                brightnessControl.value = getFilterValue(filters, 'Brightness') || 0;
+                contrastControl.value = getFilterValue(filters, 'Contrast') || 0;
+                saturationControl.value = getFilterValue(filters, 'Saturation') || 0;
+                grayscaleControl.value = getFilterValue(filters, 'Grayscale') || 0;
+                blurControl.value = getFilterValue(filters, 'Blur') || 0;
+            } else {
+                brightnessControl.value = 0;
+                contrastControl.value = 0;
+                saturationControl.value = 0;
+                grayscaleControl.value = 0;
+                blurControl.value = 0;
+            }
+
+            if (isText) {
+                textInput.value = active.text;
+                fontFamilySelect.value = active.fontFamily;
+                fontSizeInput.value = active.fontSize;
+                fontColorInput.value = active.fill;
+            } else {
+                textInput.value = '';
+                fontFamilySelect.value = 'Arial';
+                fontSizeInput.value = 30;
+                fontColorInput.value = '#000000';
+            }
+        }
+
+        function getFilterValue(filters, name) {
+            for (let f of filters) {
+                if (f.type === name) {
+                    if (name === 'Blur') return f.blur;
+                    return f[name.toLowerCase()] || 0;
+                }
+            }
+            return 0;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const active = canvas.getActiveObject();
+            if (!active || active.type !== 'image') return;
+
+            const brightness = parseFloat(brightnessControl.value);
+            const contrast = parseFloat(contrastControl.value);
+            const saturation = parseFloat(saturationControl.value);
+            const grayscale = parseFloat(grayscaleControl.value);
+            const blur = parseFloat(blurControl.value);
+
+            const filters = [];
+
+            if (brightness !== 0) filters.push(new fabric.Image.filters.Brightness({ brightness }));
+            if (contrast !== 0) filters.push(new fabric.Image.filters.Contrast({ contrast }));
+            if (saturation !== 0) filters.push(new fabric.Image.filters.Saturation({ saturation }));
+            if (grayscale !== 0) filters.push(new fabric.Image.filters.Grayscale());
+            if (blur !== 0) filters.push(new fabric.Image.filters.Blur({ blur }));
+
+            active.filters = filters;
+            active.applyFilters();
+            canvas.requestRenderAll();
+        }
+
+        // Event listeners
+        brightnessControl.addEventListener('input', applyFilters);
+        contrastControl.addEventListener('input', applyFilters);
+        saturationControl.addEventListener('input', applyFilters);
+        grayscaleControl.addEventListener('input', applyFilters);
+        blurControl.addEventListener('input', applyFilters);
+
+        // Add text
+        addTextBtn.addEventListener('click', () => {
+            const text = new fabric.Textbox(textInput.value, {
+                left: 450,
+                top: 300,
+                fontFamily: fontFamilySelect.value,
+                fontSize: parseInt(fontSizeInput.value),
+                fill: fontColorInput.value,
+                editable: true,
+                cursorColor: '#007bff',
+                cornerColor: '#007bff',
+                borderColor: '#007bff',
+                cornerStyle: 'circle',
+                transparentCorners: false,
+            });
+            canvas.add(text);
+            canvas.setActiveObject(text);
+            updateControls();
+        });
+
+        // Update text
+        textInput.addEventListener('input', () => {
+            const active = canvas.getActiveObject();
+            if (active && active.type === 'textbox') {
+                active.text = textInput.value;
+                canvas.requestRenderAll();
+            }
+        });
+        fontFamilySelect.addEventListener('change', () => {
+            const active = canvas.getActiveObject();
+            if (active && active.type === 'textbox') {
+                active.fontFamily = fontFamilySelect.value;
+                canvas.requestRenderAll();
+            }
+        });
+        fontSizeInput.addEventListener('input', () => {
+            const active = canvas.getActiveObject();
+            if (active && active.type === 'textbox') {
+                active.fontSize = parseInt(fontSizeInput.value);
+                canvas.requestRenderAll();
+            }
+        });
+        fontColorInput.addEventListener('input', () => {
+            const active = canvas.getActiveObject();
+            if (active && active.type === 'textbox') {
+                active.fill = fontColorInput.value;
+                canvas.requestRenderAll();
+            }
+        });
+
+        // Layer management
+        bringForwardBtn.addEventListener('click', () => {
+            const active = canvas.getActiveObject();
+            if (active) {
+                canvas.bringForward(active);
+                canvas.requestRenderAll();
+            }
+        });
+        sendBackwardBtn.addEventListener('click', () => {
+            const active = canvas.getActiveObject();
+            if (active) {
+                canvas.sendBackwards(active);
+                canvas.requestRenderAll();
+            }
+        });
+
+        // Delete
+        deleteBtn.addEventListener('click', () => {
+            const active = canvas.getActiveObject();
+            if (active) {
+                canvas.remove(active);
+                updateControls();
+            }
+        });
+
+        // Download
+        document.getElementById('download-btn').addEventListener('click', () => {
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                quality: 1,
+                multiplier: 2,
+            });
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = 'pearl-collage.png';
+            link.click();
+        });
+
+        // Back to home
+        document.getElementById('back-btn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        // Canvas events
+        canvas.on('selection:created', updateControls);
+        canvas.on('selection:updated', updateControls);
+        canvas.on('selection:cleared', updateControls);
+    </script>
+</body>
+</html>
+</content>
+</create_file>

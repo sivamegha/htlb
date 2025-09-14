@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canva Style Photo Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <style>
+
+    body { margin: 0; font-family: Arial, sans-serif; }
+
+    /* Navbar */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1e293b;
+      color: white;
+      padding: 10px 20px;
+    }
+    .navbar .title { font-size: 20px; font-weight: bold; }
+    .navbar .menu { display: flex; gap: 15px; }
+    .navbar button, .navbar a {
+      background: white; color: #1e293b;
+      padding: 6px 12px; border-radius: 5px;
+      border: none; font-weight: bold; cursor: pointer;
+      text-decoration: none;
+    }
+    .navbar button:hover, .navbar a:hover {
+      background: #e5e7eb;
+    }
+
+    
+
+    /* Sidebar Download Panel */
+    .sidebar {
+      position: fixed;
+      top: 0; right: -400px;
+      width: 350px; height: 100%;
+      background: #fff;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+      transition: right 0.3s ease;
+      padding: 20px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+    .sidebar.active { right: 0; }
+    .sidebar h2 { margin-bottom: 15px; }
+    .sidebar label { display: block; margin: 10px 0; }
+    .sidebar select, .sidebar input[type="range"] {
+      width: 100%; margin-top: 5px;
+    }
+    .sidebar button {
+      margin-top: 15px; width: 100%;
+      padding: 10px; border: none;
+      border-radius: 5px; cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-download { background: #22c55e; color: white; }
+    .btn-close { background: #ef4444; color: white; }
+  </style>
+    
+  </style>
+</head>
+<body class="h-screen bg-gray-100 font-sans">
+    <!-- Navbar -->
+  <div class="navbar">
+    <div class="title">📸 Photo Collage Maker</div>
+    <div class="menu">
+      <a href="index.html">Home</a>
+      <button onclick="resetCanvas()">Reset</button>
+      <button onclick="openSidebar()">Download</button>
+    </div>
+  </div>
+
+  
+
+  <!-- Sidebar (Download Options) -->
+  <div class="sidebar" id="downloadSidebar">
+    <h2>Download</h2>
+    
+    <!-- File type -->
+    <label>File type
+      <select id="fileType">
+        <option value="png">PNG (Suggested)</option>
+        <option value="jpg">JPG</option>
+      </select>
+    </label>
+
+    <!-- Size slider -->
+    <label>Size
+      <input type="range" id="sizeSlider" min="0.5" max="2" step="0.1" value="1">
+      <span id="sizeValue">1x (1080 × 1080 px)</span>
+    </label>
+
+    <!-- Options -->
+    <label><input type="checkbox"> Limit file size to (KB)</label>
+    <label><input type="checkbox"> Compress file (lower quality)</label>
+    <label><input type="checkbox"> Transparent background</label>
+
+    <!-- Pages -->
+    <label>Select pages
+      <select id="pages">
+        <option>Pages 1–2</option>
+        <option>Page 1 only</option>
+        <option>Page 2 only</option>
+      </select>
+    </label>
+
+    <!-- Preferences -->
+    <label><input type="checkbox"> Save download settings</label>
+
+    <!-- Buttons -->
+    <button class="btn-download" onclick="downloadFile()">Download</button>
+    <button class="btn-close" onclick="closeSidebar()">Close</button>
+  </div>
+
+<script>
+  function resetCanvas() {
+    document.getElementById("canvas").innerHTML = "<p>Your collage will appear here...</p>";
+    alert("Canvas reset!");
+  }
+
+  function openSidebar() {
+    document.getElementById("downloadSidebar").classList.add("active");
+  }
+
+  function closeSidebar() {
+    document.getElementById("downloadSidebar").classList.remove("active");
+  }
+
+  // Show size value live
+  document.getElementById("sizeSlider").addEventListener("input", function() {
+    let val = this.value;
+    document.getElementById("sizeValue").innerText = `${val}x (${Math.round(1080*val)} × ${Math.round(1080*val)} px)`;
+  });
+
+  function downloadFile() {
+    let type = document.getElementById("fileType").value;
+    let pages = document.getElementById("pages").value;
+    alert(`Downloading ${pages} as ${type.toUpperCase()}...`);
+    closeSidebar();
+  }
+</script>
+
+
+  <!-- Editor Layout -->
+  <div class="flex h-screen">
+    
+    <!-- Sidebar -->
+    <aside class="w-20 bg-white border-r flex flex-col items-center py-4 space-y-6">
+      <button onclick="showContent('design')" class="flex flex-col items-center text-gray-600 hover:text-blue-600">
+        <span class="text-2xl">📐</span><span class="text-xs">Design</span>
+      </button>
+      <button onclick="showContent('elements')" class="flex flex-col items-center text-gray-600 hover:text-blue-600">
+        <span class="text-2xl">🔶</span><span class="text-xs">Elements</span>
+      </button>
+      <button onclick="showContent('text')" class="flex flex-col items-center text-gray-600 hover:text-blue-600">
+        <span class="text-2xl">🔤</span><span class="text-xs">Text</span>
+      </button>
+      <button onclick="document.getElementById('photo-upload').click()" class="flex flex-col items-center text-gray-600 hover:text-blue-600">
+        <span class="text-2xl">⬆️</span><span class="text-xs">Uploads</span>
+      </button>
+      <input type="file" id="photo-upload" accept="image/*" class="hidden" onchange="previewUpload(event)">
+      <button onclick="showContent('shapes')" class="flex flex-col items-center text-gray-600 hover:text-blue-600">
+        <span class="text-2xl">🔲</span><span class="text-xs">Shapes</span>
+      </button>
+      <button onclick="showContent('filters')" class="flex flex-col items-center text-gray-600 hover:text-blue-600">
+        <span class="text-2xl">🎨</span><span class="text-xs">Filters</span>
+      </button>
+    </aside>
+
+    <!-- Main Area -->
+    <div class="flex-1 flex flex-col">
+
+      <!-- Toolbar -->
+      <div class="w-full bg-white border-b flex items-center px-4 py-2 space-x-3">
+        <input type="number" id="fontSize" value="32" min="10" max="100" class="w-16 border p-1" onchange="updateFontSize()">
+        <select id="fontSelect" class="border p-1" onchange="updateFont()">
+          <option value="Arial">Arial</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Comic Sans MS">Comic Sans</option>
+          <option value="Impact">Impact</option>
+        </select>
+        <button onclick="formatText('bold')" class="px-2 font-bold">B</button>
+        <button onclick="formatText('italic')" class="px-2 italic">I</button>
+        <button onclick="formatText('underline')" class="px-2 underline">U</button>
+        <input type="color" id="colorPicker" onchange="updateColor()">
+        <button onclick="alignText('left')" class="px-2">⬅️</button>
+        <button onclick="alignText('center')" class="px-2">↔️</button>
+        <button onclick="alignText('right')" class="px-2">➡️</button>
+        <button onclick="deleteSelected()" class="px-2 text-red-600">🗑️</button>
+        <button onclick="duplicateSelected()" class="px-2">📄</button>
+        
+      </div>
+
+      <!-- Workspace -->
+      <div class="flex flex-1">
+        
+        <!-- Options Panel -->
+        <div id="content" class="w-60 bg-gray-50 border-r p-4 overflow-y-auto">
+          <h1 class="text-lg font-bold">Welcome 🎨</h1>
+          <p class="text-sm mt-2">Choose tools from sidebar.</p>
+        </div>
+
+        <!-- Canvas -->
+        <div class="flex-1 relative bg-white">
+          <div id="canvas" class="w-full h-full relative bg-gray-50" style="min-width:800px;min-height:600px;">
+            <p class="absolute top-1/2 left-1/2 text-gray-400 transform -translate-x-1/2 -translate-y-1/2">Start Designing</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script>
+    let selectedElement = null;
+
+    function showContent(section) {
+      const contentBox = document.getElementById("content");
+      if (section === "text") {
+        contentBox.innerHTML = `
+          <h2 class="font-bold mb-2">Add Text</h2>
+          <button onclick="addText('Heading')" class="block w-full py-2 mb-2 bg-blue-100 hover:bg-blue-200 rounded">Heading</button>
+          <button onclick="addText('Subheading')" class="block w-full py-2 mb-2 bg-green-100 hover:bg-green-200 rounded">Subheading</button>
+          <button onclick="addText('Body text')" class="block w-full py-2 mb-2 bg-purple-100 hover:bg-purple-200 rounded">Body</button>
+        `;
+      } else if (section === "shapes") {
+        contentBox.innerHTML = `
+          <h2 class="font-bold mb-2">Shapes</h2>
+          <button onclick="addShape('rect')" class="block w-full py-2 mb-2 bg-black text-white rounded">Rectangle</button>
+          <button onclick="addShape('circle')" class="block w-full py-2 mb-2 bg-black text-white rounded">Circle</button>
+        `;
+      } else if (section === "filters") {
+        contentBox.innerHTML = `
+          <h2 class="font-bold mb-2">Filters</h2>
+          <button onclick="applyFilter('filter-sepia')" class="block w-full py-2 mb-2 bg-yellow-500 text-white rounded">Sepia</button>
+          <button onclick="applyFilter('filter-grayscale')" class="block w-full py-2 mb-2 bg-gray-600 text-white rounded">Grayscale</button>
+        `;
+      } else {
+        contentBox.innerHTML = `<h2 class="font-bold">Welcome 🎨</h2><p class="text-sm mt-2">Choose tools from sidebar.</p>`;
+      }
+    }
+
+    function addText(type) {
+      const canvas = document.getElementById("canvas");
+      const text = document.createElement("div");
+      text.contentEditable = true;
+      text.className = "canvas-element";
+      text.style.fontFamily = document.getElementById("fontSelect").value;
+      text.style.fontSize = document.getElementById("fontSize").value + "px";
+      text.style.color = "#000";
+      text.style.left = "50%";
+      text.style.top = "50%";
+      text.style.transform = "translate(-50%, -50%)";
+      text.innerText = type;
+      text.onclick = () => selectElement(text);
+      canvas.appendChild(text);
+      makeDraggable(text);
+      selectElement(text);
+    }
+
+    function addShape(shape) {
+      const canvas = document.getElementById("canvas");
+      const div = document.createElement("div");
+      div.className = "canvas-element " + (shape === "rect" ? "shape-rect" : "shape-circle");
+      div.style.left = "200px"; div.style.top = "200px";
+      div.onclick = () => selectElement(div);
+      canvas.appendChild(div);
+      makeDraggable(div);
+      selectElement(div);
+    }
+
+    function applyFilter(filterClass) {
+      if (selectedElement && selectedElement.tagName === "IMG") {
+        selectedElement.classList.remove("filter-sepia", "filter-grayscale");
+        selectedElement.classList.add(filterClass);
+      }
+    }
+
+    function selectElement(el) {
+      if (selectedElement) selectedElement.classList.remove("selected");
+      selectedElement = el;
+      selectedElement.classList.add("selected");
+    }
+
+    function updateFont() { if (selectedElement) selectedElement.style.fontFamily = document.getElementById("fontSelect").value; }
+    function updateFontSize() { if (selectedElement) selectedElement.style.fontSize = document.getElementById("fontSize").value + "px"; }
+    function updateColor() { if (selectedElement) selectedElement.style.color = document.getElementById("colorPicker").value; }
+
+    function formatText(style) {
+      if (!selectedElement) return;
+      if (style === "bold") selectedElement.style.fontWeight = selectedElement.style.fontWeight === "bold" ? "normal" : "bold";
+      if (style === "italic") selectedElement.style.fontStyle = selectedElement.style.fontStyle === "italic" ? "normal" : "italic";
+      if (style === "underline") selectedElement.style.textDecoration = selectedElement.style.textDecoration === "underline" ? "none" : "underline";
+    }
+
+    function alignText(direction) { if (selectedElement) selectedElement.style.textAlign = direction; }
+    function deleteSelected() { if (selectedElement) { selectedElement.remove(); selectedElement = null; } }
+    function duplicateSelected() {
+      if (selectedElement) {
+        const clone = selectedElement.cloneNode(true);
+        clone.onclick = () => selectElement(clone);
+        makeDraggable(clone);
+        selectedElement.parentElement.appendChild(clone);
+        selectElement(clone);
+      }
+    }
+
+    function makeDraggable(el) {
+      let isDragging = false, offsetX, offsetY;
+      el.addEventListener("mousedown", (e) => { isDragging = true; offsetX = e.clientX - el.offsetLeft; offsetY = e.clientY - el.offsetTop; });
+      document.addEventListener("mousemove", (e) => { if (isDragging) { el.style.left = e.clientX - offsetX + "px"; el.style.top = e.clientY - offsetY + "px"; } });
+      document.addEventListener("mouseup", () => isDragging = false);
+    }
+
+    document.getElementById("save-btn").addEventListener("click", function() {
+      const canvasArea = document.getElementById("canvas");
+      html2canvas(canvasArea).then((canvas) => {
+        const link = document.createElement("a");
+        link.download = "design.png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      });
+    });
+
+    function previewUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = document.createElement("img");
+        img.src = e.target.result;
+        img.className = "canvas-element";
+        img.style.left = "100px"; img.style.top = "100px"; img.style.width = "200px";
+        img.onclick = () => selectElement(img);
+        document.getElementById("canvas").appendChild(img);
+        makeDraggable(img);
+        selectElement(img);
+      };
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>
